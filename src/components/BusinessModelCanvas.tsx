@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, type MouseEvent, type DragEvent, type FC } from 'react';
-import { Focus, Building2, Users, Truck, type LucideIcon } from 'lucide-react';
+import { Focus, Building2, Users, Truck, type LucideIcon, Trash2 } from 'lucide-react';
 
 // --- Types and Interfaces ---
 
@@ -93,12 +93,14 @@ interface DiagramNodeProps {
     node: Node;
     onNameChange: (id: string, newName: string) => void;
     onDragStart: (e: MouseEvent<HTMLDivElement>, id: string) => void;
+    // New prop for deleting the node
+    onNodeDelete: (id: string) => void;
 }
 
 /**
  * Draggable and editable node on the canvas.
  */
-const DiagramNode: FC<DiagramNodeProps> = ({ node, onNameChange, onDragStart }) => {
+const DiagramNode: FC<DiagramNodeProps> = ({ node, onNameChange, onDragStart, onNodeDelete }) => {
     const { id, type, name, x, y } = node;
     const { icon: Icon, color, description } = ENTITY_CONFIG[type];
     const inputRef = useRef<HTMLInputElement>(null);
@@ -118,16 +120,39 @@ const DiagramNode: FC<DiagramNodeProps> = ({ node, onNameChange, onDragStart }) 
             onNameChange(id, newName);
         }
     };
+    
+    // Handler for the delete button click
+    const handleDeleteClick = (e: MouseEvent<HTMLButtonElement>): void => {
+        // Stop event propagation to prevent drag start on click
+        e.stopPropagation(); 
+        
+        // Using a built-in confirm (since we cannot build a full custom modal here) 
+        // NOTE: In a production app, this should be replaced by a custom modal UI 
+        if (window.confirm(`Are you sure you want to delete the entity: ${name}?`)) {
+            onNodeDelete(id);
+        }
+    };
 
     return (
         <div
             style={{ transform: `translate(${x}px, ${y}px)` }}
-            className="absolute p-4 rounded-xl shadow-2xl cursor-grab z-10 w-60 transform transition-shadow hover:shadow-xl group"
+            // Prevent drag from starting when interacting with the delete button by only allowing drag on the overall div
             onMouseDown={(e) => onDragStart(e, id)}
+            className="absolute p-4 rounded-xl shadow-2xl cursor-grab z-10 w-60 transform transition-shadow hover:shadow-xl group"
         >
-            <div className={`flex items-center ${color} text-white p-3 rounded-t-lg`}>
-                <Icon className="w-6 h-6 mr-3" />
-                <span className="text-lg font-bold">{type}</span>
+            <div className={`flex items-center justify-between ${color} text-white p-3 rounded-t-lg`}>
+                <div className="flex items-center">
+                    <Icon className="w-6 h-6 mr-3" />
+                    <span className="text-lg font-bold">{type}</span>
+                </div>
+                {/* Delete button */}
+                <button 
+                    onClick={handleDeleteClick}
+                    className="p-1 rounded-full bg-white/20 hover:bg-white/40 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
+                    title="Delete Entity"
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
             </div>
             <div className="bg-white p-3 border border-t-0 rounded-b-lg">
                 <input
@@ -137,6 +162,8 @@ const DiagramNode: FC<DiagramNodeProps> = ({ node, onNameChange, onDragStart }) 
                     onChange={(e) => onNameChange(id, e.target.value)}
                     onBlur={handleBlur}
                     onDoubleClick={handleDoubleClick}
+                    // Prevent drag starting on input field interaction
+                    onMouseDown={(e) => e.stopPropagation()} 
                     className="w-full text-center text-gray-800 font-medium text-lg border-b-2 border-transparent focus:border-indigo-500 focus:outline-none transition-colors"
                     title="Double-click or click to edit name"
                 />
@@ -257,6 +284,12 @@ const BusinessModelCanvas: FC = () => {
         );
     }, []);
 
+    // --- Node Deletion ---
+
+    const handleNodeDelete = useCallback((id: string): void => {
+        setNodes((prevNodes) => prevNodes.filter(node => node.id !== id));
+    }, []);
+
 
     return (
         <div className="flex h-screen bg-gray-50 font-inter">
@@ -280,12 +313,13 @@ const BusinessModelCanvas: FC = () => {
                         <li>Drag items from here to the canvas.</li>
                         <li>Drag dropped nodes to move them.</li>
                         <li>Double-click a node name to edit it.</li>
+                        <li className="font-bold text-red-600">Click the trash icon to delete.</li>
                     </ul>
                 </div>
             </aside>
 
             {/* Canvas */}
-            <main className="flex-grow h-full w-full relative overflow-hidden">
+            <main className="flex-grow h-full relative overflow-hidden">
                 <div
                     ref={canvasRef}
                     className="w-full h-full bg-slate-100/50 relative border-l border-dashed border-gray-300"
@@ -298,6 +332,7 @@ const BusinessModelCanvas: FC = () => {
                             node={node}
                             onNameChange={handleNameChange}
                             onDragStart={handleNodeDragStart}
+                            onNodeDelete={handleNodeDelete} // Pass the new delete handler
                         />
                     ))}
 

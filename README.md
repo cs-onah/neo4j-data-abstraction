@@ -30,10 +30,10 @@ We need to infer all entities added as related to the Company Node. (Questions: 
 The company Node should hold the basic information of our user.
 
 Database View
-<img src="images/neo4j_view.png" width="300"/>
+<img src="docs/neo4j_view.png" width="300"/>
 
 Recommended User View
-<img src="images/user_view_recommended.png" width="300"/>
+<img src="docs/user_view_recommended.png" width="300"/>
 
 # Eliminating the use of edges from user flow
 

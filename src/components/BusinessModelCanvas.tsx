@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, type MouseEvent, type DragEvent, type FC } from 'react';
-import type { LucideIcon } from 'lucide-react';
-import { Focus, Building2, Users, Truck } from 'lucide-react';
+import { Focus, Building2, Users, Truck, type LucideIcon } from 'lucide-react';
 
 // --- Types and Interfaces ---
 
@@ -286,7 +285,7 @@ const BusinessModelCanvas: FC = () => {
             </aside>
 
             {/* Canvas */}
-            <main className="flex-grow relative overflow-hidden">
+            <main className="flex-grow h-full w-full relative overflow-hidden">
                 <div
                     ref={canvasRef}
                     className="w-full h-full bg-slate-100/50 relative border-l border-dashed border-gray-300"

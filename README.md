@@ -208,3 +208,6 @@ We can attach the UI positions of the nodes to the database by adding a position
   ]
 }
 ```
+
+We can then abstract the relationships by using them to rename the nodes where applicable.
+e.g. use the SUPPLIES_FOR relationship to rename node of id 2 to type SUPPLIER instead of COMPANY

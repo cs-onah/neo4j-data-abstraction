@@ -124,12 +124,19 @@ Review question: How do we store the state of the canvas
 Possible Solutions:
 1. Directly represent the state of the canvas in the database. Neo4j nodes holding entities (and their UI information), and edges holding connector UI information.
 
-2. Create an alternate database that stores the state of the canvas as is. A non-relational database (like MongoDB) can be used to store the state of the canvas.
+2. Create an alternate database that stores the state of the canvas as is. A collection based non-relational database (like MongoDB) can be used to store the state of the canvas.
 
+### Approach 1: Representing Canvas state in a non-relational database.
 
-### Neo4j APOC format analysis.
+Using this approach, the canvas state is stored in the database as is. This allows the state of the canvas to exist in a structure that is different from the Neo4j database. Allowing for deeper abstractions of the data.
 
-The Neo4j database represents data in the APOC format. This format shows the nodes and relationships in the database in a JSON format.
+The state of the canvas in this approach will serve as a template through which the Neo4j database is created.
+
+### Approach 2: Representing Canvas state in Neo4j database.
+
+#### Neo4j APOC format analysis.
+
+In order to represent the canvas state in the Neo4j database, we need to understand the APOC format. The Neo4j database uses this format to show the nodes and relationships in the database in JSON format.
 Consider a database that has the following nodes, Company A, Company B, Employee 1 and Employee 2.
 
 The following cypher queries can be used to query the database for its nodes and relationships.
@@ -204,7 +211,9 @@ The result displayed using the Neo4j APOC format thus:
 }
 ```
 
-We can attach the UI positions of the nodes to the database by adding a position property to the node.
+#### Storing Canvas state in Neo4j (Approach 2)
+
+We can attach the UI positions as properties of the nodes in the database. We can also add connector properties to the edges.
 
 ```json
 {
@@ -214,43 +223,13 @@ We can attach the UI positions of the nodes to the database by adding a position
       "labels": ["Company"],
       "properties": {
         "name": "Company A",
-        "position": {
+        "positionAbsolute": {
           "x": 100,
           "y": 100
-        }
-      }
-    },
-    {
-      "id": "2",
-      "labels": ["Company"],
-      "properties": {
-        "name": "Company B",
-        "position": {
-          "x": 200,
-          "y": 200
-        }
-      }
-    },
-    {
-      "id": "3",
-      "labels": ["Employee"],
-      "properties": {
-        "name": "Employee 1",
-        "position": {
-          "x": 300,
-          "y": 300
-        }
-      }
-    },
-    {
-      "id": "4",
-      "labels": ["Employee"],
-      "properties": {
-        "name": "Employee 2",
-        "position": {
-          "x": 400,
-          "y": 400
-        }
+        },
+        "width": 192,
+        "height": 104,
+        "selected": false,
       }
     }
   ],
@@ -260,25 +239,20 @@ We can attach the UI positions of the nodes to the database by adding a position
       "type": "SUPPLIES_FOR",
       "start": "2",
       "end": "1",
-      "properties": {}
-    },
-    {
-      "id": "11",
-      "type": "WORKS_FOR",
-      "start": "3",
-      "end": "1",
-      "properties": {}
-    },
-    {
-      "id": "12",
-      "type": "WORKS_FOR",
-      "start": "4",
-      "end": "1",
-      "properties": {}
+      "properties": {
+        "ui_id": "edge-1-2-uuid",
+        "source": "node-1-uuid",
+        "sourceHandle": "reactflow__handle-source-right",
+        "target": "node-2-uuid",
+        "targetHandle": "reactflow__handle-target-left"
+      }
     }
   ]
 }
 ```
 
-We can then abstract the relationships by using them to rename the nodes where applicable.
-e.g. use the SUPPLIES_FOR relationship to rename node of id 2 to type SUPPLIER instead of COMPANY
+#### Cons of Approach 2
+
+If the approach is used, the canvass will be a one-to-one representation of the Neo4j database. This will result in less abstraction, resulting in a very cluttered canvas.
+Hence, this approach should only be used when the Neo4j database is small.
+

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, type MouseEvent, type DragEvent, type FC } from 'react';
+import React, { useCallback, useRef, type MouseEvent, type DragEvent, type FC } from 'react';
 import { Focus, Building2, Users, Truck, type LucideIcon, Trash2 } from 'lucide-react';
 // Corrected imports for reactflow using CDN paths for single-file environment
 import ReactFlow, {
@@ -128,11 +128,11 @@ const CustomNode: FC<NodeProps<CustomNodeData>> = ({ id, data }) => {
             onNameChange(id, newName);
         }
     };
-    
+
     // Handler for the delete button click
     const handleDeleteClick = (e: MouseEvent<HTMLButtonElement>): void => {
-        e.stopPropagation(); 
-        
+        e.stopPropagation();
+
         // NOTE: In a production app, this should be replaced by a custom modal UI 
         if (window.confirm(`Are you sure you want to delete the entity: ${name}?`)) {
             onNodeDelete(id);
@@ -142,10 +142,10 @@ const CustomNode: FC<NodeProps<CustomNodeData>> = ({ id, data }) => {
     return (
         <div className="p-4 rounded-xl shadow-2xl z-10 w-60 transform hover:shadow-xl transition-shadow border-2 border-transparent hover:border-indigo-400">
             {/* Target Handle (Input) on the Left */}
-            <Handle 
-                type="target" 
-                position={Position.Left} 
-                id="a" 
+            <Handle
+                type="target"
+                position={Position.Left}
+                id="a"
                 className="!bg-indigo-600 !w-4 !h-4 !border-2 !border-white !-ml-2 !shadow-lg react-flow__handle-target"
             />
 
@@ -155,7 +155,7 @@ const CustomNode: FC<NodeProps<CustomNodeData>> = ({ id, data }) => {
                     <span className="text-lg font-bold">{type}</span>
                 </div>
                 {/* Delete button */}
-                <button 
+                <button
                     onClick={handleDeleteClick}
                     onMouseDown={(e) => e.stopPropagation()} // Prevent node drag start
                     className="p-1 rounded-full bg-white/20 hover:bg-white/40 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
@@ -173,18 +173,18 @@ const CustomNode: FC<NodeProps<CustomNodeData>> = ({ id, data }) => {
                     onBlur={handleBlur}
                     onDoubleClick={handleDoubleClick}
                     // Prevent node drag starting on input field interaction
-                    onMouseDown={(e) => e.stopPropagation()} 
+                    onMouseDown={(e) => e.stopPropagation()}
                     className="w-full text-center text-gray-800 font-medium text-lg border-b-2 border-transparent focus:border-indigo-500 focus:outline-none transition-colors nodrag"
                     title="Double-click or click to edit name"
                 />
                 <p className="text-xs text-gray-500 mt-1 text-center italic">{description}</p>
             </div>
-            
+
             {/* Source Handle (Output) on the Right */}
-             <Handle 
-                type="source" 
-                position={Position.Right} 
-                id="b" 
+            <Handle
+                type="source"
+                position={Position.Right}
+                id="b"
                 className="!bg-green-500 !w-4 !h-4 !border-2 !border-white !-mr-2 !shadow-lg react-flow__handle-source"
             />
         </div>
@@ -235,15 +235,15 @@ const FlowCanvas: FC = () => {
     // Initialize nodes and edges with hooks
     const [nodes, setNodes, onNodesChange] = useNodesState<CustomNodeData>([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-    
+
     // Get the instance for utility functions like project
     const { screenToFlowPosition } = useReactFlow();
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
     // --- Connection Handling (When user drags handle to handle) ---
     const onConnect: OnConnect = useCallback((params: Edge | Connection) => {
-        setEdges((eds) => addEdge({ 
-            ...params, 
+        setEdges((eds) => addEdge({
+            ...params,
             id: generateUniqueId('edge'),
             animated: true,
             style: { stroke: '#4F46E5', strokeWidth: 2 }, // Apply custom styling to the edge
@@ -254,10 +254,10 @@ const FlowCanvas: FC = () => {
 
     // 1. Handle Name Change
     const handleNameChange = useCallback((id: string, newName: string) => {
-        setNodes((nds) => 
-            nds.map((node) => 
-                node.id === id 
-                    ? { ...node, data: { ...node.data, name: newName } } 
+        setNodes((nds) =>
+            nds.map((node) =>
+                node.id === id
+                    ? { ...node, data: { ...node.data, name: newName } }
                     : node
             )
         );
@@ -267,7 +267,7 @@ const FlowCanvas: FC = () => {
     const handleNodeDelete = useCallback((id: string) => {
         // Remove connections first
         setEdges((eds) => eds.filter(edge => edge.source !== id && edge.target !== id));
-        
+
         // Remove node
         setNodes((nds) => nds.filter(node => node.id !== id));
     }, [setNodes, setEdges]);
@@ -287,11 +287,11 @@ const FlowCanvas: FC = () => {
         if (reactFlowWrapper.current && nodeType && ENTITY_CONFIG[nodeType]) {
             const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
             const config = ENTITY_CONFIG[nodeType];
-            
+
             const newNode: Node<CustomNodeData> = {
                 id: generateUniqueId('node'),
                 type: nodeType, // Must match the key in nodeTypes map
-                position: { 
+                position: {
                     x: position.x - 120, // Center the node horizontally
                     y: position.y - 55,  // Center the node vertically
                 },
@@ -317,17 +317,17 @@ const FlowCanvas: FC = () => {
                 // Use built-in change handlers for dragging/movement
                 onNodesChange={(changes) => onNodesChange(changes)}
                 onEdgesChange={(changes) => onEdgesChange(changes)}
-                
+
                 // Use built-in connection handler
                 onConnect={onConnect}
-                
+
                 // Custom node types registration
                 nodeTypes={nodeTypes}
 
                 // Drag and Drop handlers
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
-                
+
                 // Ensure nodes are draggable by default
                 proOptions={{ hideAttribution: true }}
                 fitView

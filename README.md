@@ -13,17 +13,21 @@ npm run dev
 
 ## Problem Statement
 
-User data is stored in a Neo4j database that represents data as nodes and edges (relationships). However, presenting this data to the user as is, will look messy as the database gets large.
+For this project, users are provided with a canvas with which they are to illustrate the structure or operation of their business. The data from this canvas is stored in a graph database called Neo4j allowing for a more dynamic data structure and more flexible queries.
 
-Hence the question; How do we present this data in a way that users can easily understand - abstracting the complexity of several nodes and edges.
+However, the user input on the canvas might be an abstraction of how the data is to be represented on the graph database.
+
+This repo explores the different ways to store the data from the canvas while maintaining a layer of abstraction between the user input on the canvas and the data stored in the graph database.
+
+This abstraction is necessary to avoid overwhelming the users with the complex structure of the graph database.
 
 ## Considerations
 
-- We need to eliminate the need for connector labels in the UI, so that the db relationships between nodes are inferred.
-- We need to represent the UI state (positions, types, and connections) of the UI nodes in the database.
-- The user diagram should directly be translated to content on the database.
+- In the UI canvas, we need to eliminate the need for connector to be labelled, so that the db relationships between nodes are inferred.
+- We need to store the UI canvas state (positions, types, and connections) in a database for easy retrieval and editing.
+- The UI canvas state (although abstracted), should be stored in such a way that it can be used to create the graph database.
 
-## Implementation Plan
+## CanvasImplementation Plan
 
 The UI will provide entitites which can be dragged and dropped on the canvas as nodes. These entities are also to be connected using unlabelled connectors representing edges in the db. The system will infer the relationship between connected entities and store them in the database.
 

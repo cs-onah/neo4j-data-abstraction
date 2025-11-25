@@ -1,6 +1,6 @@
-# Node data abstraction
+# Business Model Representation.
 
-This project aims at showing how to represent nodes from a Neo4j database in a simplified, user friendly manner.
+This repo explores ways a business model, represented on a UI canvas can be stored in a graph database.
 
 ## Getting Started
 
@@ -13,13 +13,11 @@ npm run dev
 
 ## Problem Statement
 
-For this project, users are provided with a canvas with which they are to illustrate the structure or operation of their business. The data from this canvas is stored in a graph database called Neo4j allowing for a more dynamic data structure and more flexible queries.
+For the Reqarchi project, users are provided with a canvas with which they are to illustrate the structure or operation of their business. The data from this canvas is to be stored in a graph database called Neo4j allowing for a more dynamic data structure and more flexible queries.
 
-However, the user input on the canvas might be an abstraction of how the data is to be represented on the graph database.
+The state of this canvas (including the entities, their positions, and their connections) is to be stored in a database for easy retrieval and editing. This repo explores the different ways to store the data from the canvas while maintaining a layer of abstraction between the user input on the canvas and the data stored in the graph database.
 
-This repo explores the different ways to store the data from the canvas while maintaining a layer of abstraction between the user input on the canvas and the data stored in the graph database.
-
-This abstraction is necessary to avoid overwhelming the users with the complex structure of the graph database.
+This abstraction might be necessary to avoid overwhelming the users with the complex structure of the graph database.
 
 ## Considerations
 
@@ -37,10 +35,6 @@ The UI will provide entitites which can be dragged and dropped on the canvas as 
 Database View
 
 <img src="docs/neo4j_view.png" width="300"/>
-
-Recommended User View (Edit to add edges)
-
-<img src="docs/user_view_recommended.png" width="300"/>
 
 # Inferring relationship between nodes
 

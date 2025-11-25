@@ -1,26 +1,85 @@
-import React, { useState, useCallback, useRef, useEffect, type MouseEvent, type DragEvent, type FC } from 'react';
+import React, { useState, useCallback, useRef, type MouseEvent, type DragEvent, type FC } from 'react';
 import { Focus, Building2, Users, Truck, type LucideIcon, Trash2 } from 'lucide-react';
+// Corrected imports for reactflow using CDN paths for single-file environment
+import ReactFlow, {
+    ReactFlowProvider,
+    useNodesState,
+    useEdgesState,
+    addEdge,
+    useReactFlow,
+    type Node,
+    type Edge,
+    type Connection,
+    Handle,
+    Position,
+    type NodeProps,
+    type OnConnect,
+} from 'reactflow';
 
-// --- Types and Interfaces ---
+// Since we can't rely on global library setup, we must define the minimal styles needed for reactflow handles
+// NOTE: In a true production environment, you would import 'reactflow/dist/style.css'
+const reactFlowStyles = `
+/* Basic styles to make React Flow handles and nodes function correctly */
+.react-flow__handle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: #555;
+    border-radius: 50%;
+    cursor: crosshair;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 8px;
+    color: white;
+}
+.react-flow__handle-left {
+    left: -5px;
+}
+.react-flow__handle-right {
+    right: -5px;
+}
+.react-flow__handle-top {
+    top: -5px;
+}
+.react-flow__handle-bottom {
+    bottom: -5px;
+}
+.react-flow__handle-target {
+    background: #0080ff;
+}
+.react-flow__handle-source {
+    background: #ff4d4d;
+}
+`;
 
-// Define the specific types of entities allowed
+
+// We must manually define a unique ID generator for nodes/edges
+const generateUniqueId = (prefix: string = 'rf'): string => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return `${prefix}-${crypto.randomUUID()}`;
+    }
+    return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+
+
+// --- Configuration & Types ---
+
 type EntityType = 'Company' | 'Employee' | 'Supplier';
 
-// Interface for the data structure of a single diagram node
-interface Node {
-    id: string;
-    type: EntityType;
-    name: string;
-    x: number;
-    y: number;
-}
-
-// Interface for the configuration of each entity type
 interface EntityConfig {
     icon: LucideIcon;
     color: string;
     initialName: string;
     description: string;
+}
+
+// Data specific to our custom node (passed via data prop in RF Node)
+interface CustomNodeData {
+    type: EntityType;
+    name: string;
+    onNameChange: (id: string, newName: string) => void;
+    onNodeDelete: (id: string) => void;
 }
 
 // Map configuration to entity types
@@ -45,21 +104,102 @@ const ENTITY_CONFIG: Record<EntityType, EntityConfig> = {
     },
 };
 
-// --- Helper Functions ---
+
+// --- Custom Node Component ---
 
 /**
- * Generates a unique ID.
- * @returns {string} A unique ID.
+ * Draggable and editable node component used by React Flow.
  */
-const generateUniqueId = (): string => {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-        return crypto.randomUUID();
-    }
-    return `node-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+const CustomNode: FC<NodeProps<CustomNodeData>> = ({ id, data }) => {
+    const { type, name, onNameChange, onNodeDelete } = data;
+    const { icon: Icon, color, description } = ENTITY_CONFIG[type];
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    const handleDoubleClick = (): void => {
+        if (inputRef.current) {
+            inputRef.current.focus();
+            inputRef.current.select();
+        }
+    };
+
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement>): void => {
+        const newName = e.target.value.trim();
+        if (newName !== name && newName.length > 0) {
+            onNameChange(id, newName);
+        }
+    };
+    
+    // Handler for the delete button click
+    const handleDeleteClick = (e: MouseEvent<HTMLButtonElement>): void => {
+        e.stopPropagation(); 
+        
+        // NOTE: In a production app, this should be replaced by a custom modal UI 
+        if (window.confirm(`Are you sure you want to delete the entity: ${name}?`)) {
+            onNodeDelete(id);
+        }
+    };
+
+    return (
+        <div className="p-4 rounded-xl shadow-2xl z-10 w-60 transform hover:shadow-xl transition-shadow border-2 border-transparent hover:border-indigo-400">
+            {/* Target Handle (Input) on the Left */}
+            <Handle 
+                type="target" 
+                position={Position.Left} 
+                id="a" 
+                className="!bg-indigo-600 !w-4 !h-4 !border-2 !border-white !-ml-2 !shadow-lg react-flow__handle-target"
+            />
+
+            <div className={`flex items-center justify-between ${color} text-white p-3 rounded-t-lg`}>
+                <div className="flex items-center">
+                    <Icon className="w-6 h-6 mr-3" />
+                    <span className="text-lg font-bold">{type}</span>
+                </div>
+                {/* Delete button */}
+                <button 
+                    onClick={handleDeleteClick}
+                    onMouseDown={(e) => e.stopPropagation()} // Prevent node drag start
+                    className="p-1 rounded-full bg-white/20 hover:bg-white/40 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
+                    title="Delete Entity"
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
+            </div>
+            <div className="bg-white p-3 border border-t-0 rounded-b-lg">
+                <input
+                    ref={inputRef}
+                    type="text"
+                    value={name}
+                    onChange={(e) => onNameChange(id, e.target.value)}
+                    onBlur={handleBlur}
+                    onDoubleClick={handleDoubleClick}
+                    // Prevent node drag starting on input field interaction
+                    onMouseDown={(e) => e.stopPropagation()} 
+                    className="w-full text-center text-gray-800 font-medium text-lg border-b-2 border-transparent focus:border-indigo-500 focus:outline-none transition-colors nodrag"
+                    title="Double-click or click to edit name"
+                />
+                <p className="text-xs text-gray-500 mt-1 text-center italic">{description}</p>
+            </div>
+            
+            {/* Source Handle (Output) on the Right */}
+             <Handle 
+                type="source" 
+                position={Position.Right} 
+                id="b" 
+                className="!bg-green-500 !w-4 !h-4 !border-2 !border-white !-mr-2 !shadow-lg react-flow__handle-source"
+            />
+        </div>
+    );
+};
+
+// Map of custom node types for React Flow
+const nodeTypes = {
+    Company: CustomNode,
+    Employee: CustomNode,
+    Supplier: CustomNode,
 };
 
 
-// --- Components ---
+// --- Sidebar Component ---
 
 interface DraggableSidebarItemProps {
     type: EntityType;
@@ -89,101 +229,51 @@ const DraggableSidebarItem: FC<DraggableSidebarItemProps> = ({ type }) => {
     );
 };
 
-interface DiagramNodeProps {
-    node: Node;
-    onNameChange: (id: string, newName: string) => void;
-    onDragStart: (e: MouseEvent<HTMLDivElement>, id: string) => void;
-    // New prop for deleting the node
-    onNodeDelete: (id: string) => void;
-}
+// --- React Flow Core Component (Canvas) ---
 
-/**
- * Draggable and editable node on the canvas.
- */
-const DiagramNode: FC<DiagramNodeProps> = ({ node, onNameChange, onDragStart, onNodeDelete }) => {
-    const { id, type, name, x, y } = node;
-    const { icon: Icon, color, description } = ENTITY_CONFIG[type];
-    const inputRef = useRef<HTMLInputElement>(null);
-
-    const handleDoubleClick = (): void => {
-        // Focus the input field on double click for editing
-        if (inputRef.current) {
-            inputRef.current.focus();
-            inputRef.current.select();
-        }
-    };
-
-    const handleBlur = (e: React.FocusEvent<HTMLInputElement>): void => {
-        // Trim and update name on blur
-        const newName = e.target.value.trim();
-        if (newName !== name && newName.length > 0) {
-            onNameChange(id, newName);
-        }
-    };
+const FlowCanvas: FC = () => {
+    // Initialize nodes and edges with hooks
+    const [nodes, setNodes, onNodesChange] = useNodesState<CustomNodeData>([]);
+    const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     
-    // Handler for the delete button click
-    const handleDeleteClick = (e: MouseEvent<HTMLButtonElement>): void => {
-        // Stop event propagation to prevent drag start on click
-        e.stopPropagation(); 
+    // Get the instance for utility functions like project
+    const { screenToFlowPosition } = useReactFlow();
+    const reactFlowWrapper = useRef<HTMLDivElement>(null);
+
+    // --- Connection Handling (When user drags handle to handle) ---
+    const onConnect: OnConnect = useCallback((params: Edge | Connection) => {
+        setEdges((eds) => addEdge({ 
+            ...params, 
+            id: generateUniqueId('edge'),
+            animated: true,
+            style: { stroke: '#4F46E5', strokeWidth: 2 }, // Apply custom styling to the edge
+        }, eds));
+    }, [setEdges]);
+
+    // --- Custom Action Handlers passed to CustomNode ---
+
+    // 1. Handle Name Change
+    const handleNameChange = useCallback((id: string, newName: string) => {
+        setNodes((nds) => 
+            nds.map((node) => 
+                node.id === id 
+                    ? { ...node, data: { ...node.data, name: newName } } 
+                    : node
+            )
+        );
+    }, [setNodes]);
+
+    // 2. Handle Node Deletion
+    const handleNodeDelete = useCallback((id: string) => {
+        // Remove connections first
+        setEdges((eds) => eds.filter(edge => edge.source !== id && edge.target !== id));
         
-        // Using a built-in confirm (since we cannot build a full custom modal here) 
-        // NOTE: In a production app, this should be replaced by a custom modal UI 
-        if (window.confirm(`Are you sure you want to delete the entity: ${name}?`)) {
-            onNodeDelete(id);
-        }
-    };
-
-    return (
-        <div
-            style={{ transform: `translate(${x}px, ${y}px)` }}
-            // Prevent drag from starting when interacting with the delete button by only allowing drag on the overall div
-            onMouseDown={(e) => onDragStart(e, id)}
-            className="absolute p-4 rounded-xl shadow-2xl cursor-grab z-10 w-60 transform transition-shadow hover:shadow-xl group"
-        >
-            <div className={`flex items-center justify-between ${color} text-white p-3 rounded-t-lg`}>
-                <div className="flex items-center">
-                    <Icon className="w-6 h-6 mr-3" />
-                    <span className="text-lg font-bold">{type}</span>
-                </div>
-                {/* Delete button */}
-                <button 
-                    onClick={handleDeleteClick}
-                    className="p-1 rounded-full bg-white/20 hover:bg-white/40 transition-colors focus:outline-none focus:ring-2 focus:ring-white"
-                    title="Delete Entity"
-                >
-                    <Trash2 className="w-4 h-4" />
-                </button>
-            </div>
-            <div className="bg-white p-3 border border-t-0 rounded-b-lg">
-                <input
-                    ref={inputRef}
-                    type="text"
-                    value={name}
-                    onChange={(e) => onNameChange(id, e.target.value)}
-                    onBlur={handleBlur}
-                    onDoubleClick={handleDoubleClick}
-                    // Prevent drag starting on input field interaction
-                    onMouseDown={(e) => e.stopPropagation()} 
-                    className="w-full text-center text-gray-800 font-medium text-lg border-b-2 border-transparent focus:border-indigo-500 focus:outline-none transition-colors"
-                    title="Double-click or click to edit name"
-                />
-                <p className="text-xs text-gray-500 mt-1 text-center italic">{description}</p>
-            </div>
-        </div>
-    );
-};
+        // Remove node
+        setNodes((nds) => nds.filter(node => node.id !== id));
+    }, [setNodes, setEdges]);
 
 
-/**
- * Main application component.
- */
-const BusinessModelCanvas: FC = () => {
-    const [nodes, setNodes] = useState<Node[]>([]);
-    const [isDragging, setIsDragging] = useState<boolean>(false);
-    const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
-    const canvasRef = useRef<HTMLDivElement>(null);
-
-    // --- Node Creation (Drop from Sidebar) ---
+    // --- Drag and Drop from Sidebar ---
 
     const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>): void => {
         e.preventDefault();
@@ -194,103 +284,73 @@ const BusinessModelCanvas: FC = () => {
         e.preventDefault();
         const nodeType = e.dataTransfer.getData('application/reactflow') as EntityType | '';
 
-        // Check if the nodeType is a valid key in ENTITY_CONFIG
-        if (canvasRef.current && nodeType && ENTITY_CONFIG[nodeType as EntityType]) {
-            const canvasRect = canvasRef.current.getBoundingClientRect();
-            // Calculate position relative to the canvas origin (top-left)
-            const x = e.clientX - canvasRect.left - 30; // 30px offset for center approximation
-            const y = e.clientY - canvasRect.top - 30;
-
-            const newNode: Node = {
-                id: generateUniqueId(),
-                type: nodeType as EntityType, // Assert type after checking config
-                name: ENTITY_CONFIG[nodeType as EntityType].initialName,
-                x: Math.max(0, x), // Ensure position is non-negative
-                y: Math.max(0, y),
+        if (reactFlowWrapper.current && nodeType && ENTITY_CONFIG[nodeType]) {
+            const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+            const config = ENTITY_CONFIG[nodeType];
+            
+            const newNode: Node<CustomNodeData> = {
+                id: generateUniqueId('node'),
+                type: nodeType, // Must match the key in nodeTypes map
+                position: { 
+                    x: position.x - 120, // Center the node horizontally
+                    y: position.y - 55,  // Center the node vertically
+                },
+                data: {
+                    type: nodeType,
+                    name: config.initialName,
+                    onNameChange: handleNameChange, // Pass the handler
+                    onNodeDelete: handleNodeDelete, // Pass the handler
+                },
             };
 
-            setNodes((prevNodes) => [...prevNodes, newNode]);
+            setNodes((nds) => nds.concat(newNode));
         }
-    }, []);
+    }, [screenToFlowPosition, setNodes, handleNameChange, handleNodeDelete]);
 
 
-    // --- Node Movement (Dragging existing node) ---
+    return (
+        <div ref={reactFlowWrapper} className="w-full h-full relative">
+            <style>{reactFlowStyles}</style> {/* Inject minimal React Flow styles */}
+            <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                // Use built-in change handlers for dragging/movement
+                onNodesChange={(changes) => onNodesChange(changes)}
+                onEdgesChange={(changes) => onEdgesChange(changes)}
+                
+                // Use built-in connection handler
+                onConnect={onConnect}
+                
+                // Custom node types registration
+                nodeTypes={nodeTypes}
 
-    // State to store the offset from the node's top-left corner to the mouse click point
-    const [dragOffset, setDragOffset] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
-
-    const handleNodeDragStart = useCallback((e: MouseEvent<HTMLDivElement>, nodeId: string): void => {
-        const target = e.currentTarget as HTMLDivElement;
-        const rect = target.getBoundingClientRect();
-
-        // Calculate offset (how far the click is from the top-left of the node)
-        const offsetX = e.clientX - rect.left;
-        const offsetY = e.clientY - rect.top;
-
-        setDragOffset({ x: offsetX, y: offsetY });
-        setDraggedNodeId(nodeId);
-        setIsDragging(true);
-        // Prevent default text selection behavior during drag
-        e.preventDefault();
-    }, []);
-
-    const handleMouseMove = useCallback((e: globalThis.MouseEvent): void => {
-        if (!isDragging || !draggedNodeId || !canvasRef.current) return;
-
-        const canvasRect = canvasRef.current.getBoundingClientRect();
-
-        // Calculate the new position of the node's top-left corner
-        const newX = e.clientX - canvasRect.left - dragOffset.x;
-        const newY = e.clientY - canvasRect.top - dragOffset.y;
-
-        setNodes((prevNodes) =>
-            prevNodes.map((node) =>
-                node.id === draggedNodeId
-                    ? { ...node, x: newX, y: newY }
-                    : node
-            )
-        );
-    }, [isDragging, draggedNodeId, dragOffset]);
-
-    const handleMouseUp = useCallback((): void => {
-        setIsDragging(false);
-        setDraggedNodeId(null);
-    }, []);
-
-    // Attach/detach global mouse move/up listeners for smooth dragging outside the node boundary
-    useEffect(() => {
-        if (isDragging) {
-            // Add 'globalThis.' to satisfy the TypeScript environment for global window events
-            globalThis.window.addEventListener('mousemove', handleMouseMove);
-            globalThis.window.addEventListener('mouseup', handleMouseUp);
-        } else {
-            globalThis.window.removeEventListener('mousemove', handleMouseMove);
-            globalThis.window.removeEventListener('mouseup', handleMouseUp);
-        }
-        return () => {
-            globalThis.window.removeEventListener('mousemove', handleMouseMove);
-            globalThis.window.removeEventListener('mouseup', handleMouseUp);
-        };
-    }, [isDragging, handleMouseMove, handleMouseUp]);
+                // Drag and Drop handlers
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+                
+                // Ensure nodes are draggable by default
+                proOptions={{ hideAttribution: true }}
+                fitView
+            >
+                {/* Placeholder for no nodes */}
+                {nodes.length === 0 && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-gray-400 z-20">
+                        <Focus className="w-16 h-16 mb-4 opacity-50" />
+                        <p className="text-xl font-semibold">
+                            Drag an entity here to start modeling.
+                        </p>
+                    </div>
+                )}
+            </ReactFlow>
+        </div>
+    );
+};
 
 
-    // --- Node Editing ---
-
-    const handleNameChange = useCallback((id: string, newName: string): void => {
-        setNodes((prevNodes) =>
-            prevNodes.map((node) =>
-                node.id === id ? { ...node, name: newName } : node
-            )
-        );
-    }, []);
-
-    // --- Node Deletion ---
-
-    const handleNodeDelete = useCallback((id: string): void => {
-        setNodes((prevNodes) => prevNodes.filter(node => node.id !== id));
-    }, []);
-
-
+/**
+ * Main application component wrapper.
+ */
+const BusinessModelCanvas: FC = () => {
     return (
         <div className="flex h-screen bg-gray-50 font-inter">
             {/* Sidebar */}
@@ -302,7 +362,6 @@ const BusinessModelCanvas: FC = () => {
                     Drag and drop these entities onto the canvas to model your business.
                 </p>
 
-                {/* Using Object.keys and asserting the type for map function */}
                 {(Object.keys(ENTITY_CONFIG) as EntityType[]).map((type) => (
                     <DraggableSidebarItem key={type} type={type} />
                 ))}
@@ -311,46 +370,19 @@ const BusinessModelCanvas: FC = () => {
                     <h3 className="text-lg font-semibold text-gray-700 mb-2">Instructions</h3>
                     <ul className="text-sm text-gray-500 list-disc list-inside space-y-1">
                         <li>Drag items from here to the canvas.</li>
-                        <li>Drag dropped nodes to move them.</li>
+                        <li className="font-bold text-indigo-600">Drag nodes to move (Pan/Zoom available).</li>
+                        <li className="font-bold text-green-600">Drag the connection handles to link nodes.</li>
                         <li>Double-click a node name to edit it.</li>
                         <li className="font-bold text-red-600">Click the trash icon to delete.</li>
                     </ul>
                 </div>
             </aside>
 
-            {/* Canvas */}
-            <main className="flex-grow h-full relative overflow-hidden">
-                <div
-                    ref={canvasRef}
-                    className="w-full h-full bg-slate-100/50 relative border-l border-dashed border-gray-300"
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop}
-                >
-                    {nodes.map((node) => (
-                        <DiagramNode
-                            key={node.id}
-                            node={node}
-                            onNameChange={handleNameChange}
-                            onDragStart={handleNodeDragStart}
-                            onNodeDelete={handleNodeDelete} // Pass the new delete handler
-                        />
-                    ))}
-
-                    {/* Placeholder and helper text */}
-                    {nodes.length === 0 && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-gray-400">
-                            <Focus className="w-16 h-16 mb-4 opacity-50" />
-                            <p className="text-xl font-semibold">
-                                Drag an entity here to start modeling.
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Drag indicator when a node is being moved */}
-                    {isDragging && (
-                        <div className="absolute inset-0 bg-indigo-500/10 pointer-events-none border-4 border-dashed border-indigo-400 z-50 rounded-lg animate-pulse"></div>
-                    )}
-                </div>
+            {/* Canvas wrapped in ReactFlowProvider */}
+            <main className="flex-grow relative overflow-hidden">
+                <ReactFlowProvider>
+                    <FlowCanvas />
+                </ReactFlowProvider>
             </main>
         </div>
     );

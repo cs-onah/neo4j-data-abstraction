@@ -27,6 +27,7 @@ import ReactFlow, {
 // We must assume the host environment (Canvas) handles ReactFlow's default styling or rely only on Tailwind.
 // Removing the explicit CSS import: import 'reactflow/dist/style.css'; 
 import { Building, User, Truck, Save, X } from 'lucide-react';
+import '@xyflow/react/dist/style.css';
 
 // --- 1. CONFIGURATION AND TYPES ---
 

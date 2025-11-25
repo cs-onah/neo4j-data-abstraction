@@ -236,12 +236,28 @@ const FlowWrapper: React.FC = () => {
   };
 
   // Handle Save (Requirement 4: Save button logic)
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (nodes.length === 0) {
       setModalMessage("Cannot save. The canvas is empty. Drag some entities onto the board first!");
-    } else {
-      // In a real application, you would serialize and save the nodes and edges here.
-      setModalMessage(`Done! Saved ${nodes.length} entities and ${edges.length} connections.`);
+      setIsModalOpen(true);
+      return;
+    }
+
+    // 1. Serialize the state to a JSON string
+    const flowState = { nodes, edges };
+    const flowJSON = JSON.stringify(flowState, null, 2); // Use 2-space indentation for readability
+
+    try {
+      // 2. Copy the JSON string to the clipboard
+      await navigator.clipboard.writeText(flowJSON);
+
+      // 3. Update the message
+      setModalMessage(`Success! Copied ${nodes.length} entities and ${edges.length} connections to clipboard as JSON.`);
+
+    } catch (err) {
+      // Handle potential security errors (e.g., non-secure context)
+      console.error('Failed to copy to clipboard:', err);
+      setModalMessage("Error: Failed to copy to clipboard. Ensure the page is served over HTTPS or use the console to view the state.");
     }
     setIsModalOpen(true);
   }, [nodes, edges]);

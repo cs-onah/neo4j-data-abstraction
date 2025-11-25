@@ -57,9 +57,79 @@ We can represent the data in the database as:
 if (:EMPLOYEE {name: "Employee 1"})-[:WORKS_FOR]->(:COMPANY {name: "A"})
 if (:EMPLOYEE {name: "Employee 2"})-[:WORKS_FOR]->(:COMPANY {name: "A"})
 
-## Representing UI Nodes on the database.
+## Saving the canvas state to the database
 
-The Neo4j database stores data in the APOC format. This format shows the nodes and relationships in the database in a JSON format.
+The complete state of the canvas can be represented in JSON in the format below.
+
+```json 
+{
+  "nodes": [
+    {
+      "id": "node-1-uuid",
+      "type": "company",
+      "position": {
+        "x": 250,
+        "y": 100
+      },
+      "data": {
+        "label": "Company",
+        "name": "Acme Corp"
+      },
+      "width": 192,
+      "height": 104,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 250,
+        "y": 100
+      }
+    },
+    {
+      "id": "node-2-uuid",
+      "type": "employee",
+      "position": {
+        "x": 600,
+        "y": 250
+      },
+      "data": {
+        "label": "Employee",
+        "name": "Jane Doe"
+      },
+      "width": 192,
+      "height": 104,
+      "selected": false,
+      "positionAbsolute": {
+        "x": 600,
+        "y": 250
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-1-2-uuid",
+      "source": "node-1-uuid",
+      "sourceHandle": "reactflow__handle-source-right",
+      "target": "node-2-uuid",
+      "targetHandle": "reactflow__handle-target-left",
+      "type": "customEdge",
+      "animated": true
+    }
+  ]
+}
+```
+
+## Representing UI Nodes on the database. (STILL IN REVIEW)
+
+Review question: How do we store the state of the canvas
+
+Possible Solutions:
+1. Directly represent the state of the canvas in the database. Neo4j nodes holding entities (and their UI information), and edges holding connector UI information.
+
+2. Create an alternate database that stores the state of the canvas as is. A non-relational database (like MongoDB) can be used to store the state of the canvas.
+
+
+### Neo4j APOC format analysis.
+
+The Neo4j database represents data in the APOC format. This format shows the nodes and relationships in the database in a JSON format.
 Consider a database that has the following nodes, Company A, Company B, Employee 1 and Employee 2.
 
 The following cypher queries can be used to query the database for its nodes and relationships.

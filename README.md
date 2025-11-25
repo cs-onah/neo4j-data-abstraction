@@ -13,57 +13,56 @@ npm run dev
 
 ## Problem Statement
 
-User data is stored in a Neo4j database that represents data as nodes and edges (relationships).
-However, representing this data as is, to the User will become messy as the database gets large.
+User data is stored in a Neo4j database that represents data as nodes and edges (relationships). However, presenting this data to the user as is, will look messy as the database gets large.
 
-Hence the question, How do we present this data in a way that users can easily understand - abstracting the complexity of several nodes and edges.
+Hence the question; How do we present this data in a way that users can easily understand - abstracting the complexity of several nodes and edges.
 
 ## Considerations
 
-- We need to eliminate/abstract the use of edges by the user in the UI.
-- We need to represent the state (positions, types, etc) of the UI nodes in the database.
+- We need to eliminate the need for connector labels in the UI, so that the db relationships between nodes are inferred.
+- We need to represent the UI state (positions, types, and connections) of the UI nodes in the database.
 - The user diagram should directly be translated to content on the database.
 
 ## Implementation Plan
 
-We need to infer all entities added as related to the Company Node. (Questions: Are there cases where added nodes is to be related to a different entity, e.g. Employee)
-The company Node should hold the basic information of our user.
+The UI will provide entitites which can be dragged and dropped on the canvas as nodes. These entities are also to be connected using unlabelled connectors representing edges in the db. The system will infer the relationship between connected entities and store them in the database.
+
+
+## Images
 
 Database View
 
 <img src="docs/neo4j_view.png" width="300"/>
 
-Recommended User View
+Recommended User View (Edit to add edges)
 
 <img src="docs/user_view_recommended.png" width="300"/>
 
-# Eliminating the use of edges from user flow
+# Inferring relationship between nodes
 
-Represent nodes and their edge (relationship) with an entity that describes both the node and its relationship to the company.
+Entities provided on the UI should be given a name that can infer its relationship to other entities its connected to. For example, if a supplier is connected to a company, we can infer the db relationship as SUPPLIES. 
 
 Example 1:
-For a user - Company A, trying to add a supplier (Company B) to our system;
+Consider a company (called Company B) that supplies another company (called Company A) with raw materials.
+In the UI, Company B can be represented using the SUPPLIER entity, which is connected to COMPANY (Company A). We can then infer the db relationship as SUPPLIES.
 
 We can represent the data in the database as:
 if (:COMPANY {name: "B"})-[:SUPPLIES]->(:COMPANY {name: "A"})
 
-However, on the UI:
-We'd present B to the user with a SUPPLIER node, which represents both the node and it's relationship to A as presented in the database.
-
 Example 2:
 Consider employee 1 and employee 2 who both work for Company A.
+In the UI, Employee 1 and Employee 2 can be represented using the EMPLOYEE entity, which is connected to COMPANY (Company A). We can then infer the db relationship as WORKS_FOR.
 
 We can represent the data in the database as:
 if (:EMPLOYEE {name: "Employee 1"})-[:WORKS_FOR]->(:COMPANY {name: "A"})
 if (:EMPLOYEE {name: "Employee 2"})-[:WORKS_FOR]->(:COMPANY {name: "A"})
 
-However, on the UI:
-We'd present Employee 1 and Employee 2 to the user with a EMPLOYEE node, which represents both the node and it's relationship to A as presented in the database.
-
 ## Representing UI Nodes on the database.
 
-Assuming the database has the following nodes, Company A, Company B, Employee 1 and Employee 2.
-We can query the database to return all its result.
+The Neo4j database stores data in the APOC format. This format shows the nodes and relationships in the database in a JSON format.
+Consider a database that has the following nodes, Company A, Company B, Employee 1 and Employee 2.
+
+The following cypher queries can be used to query the database for its nodes and relationships.
 
 ```cypher
 MATCH (n)
